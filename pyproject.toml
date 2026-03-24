@@ -15,5 +15,8 @@ dependencies = [
     "plotext>=5.2",
 ]
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [project.scripts]
 l8nc = "l8nc.cli:main"
