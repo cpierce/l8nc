@@ -1,0 +1,7 @@
+l8nc.egg-info/
+__pycache__/
+*.pyc
+logs/
+.eggs/
+dist/
+build/

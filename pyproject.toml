@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "l8nc"
+version = "0.1.0"
+description = "Multi-target continuous ping monitor for network troubleshooting"
+requires-python = ">=3.8"
+dependencies = [
+    "rich>=13.0",
+    "click>=8.0",
+    "icmplib>=3.0",
+    "plotext>=5.2",
+]
+
+[project.scripts]
+l8nc = "l8nc.cli:main"
