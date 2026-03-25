@@ -99,7 +99,7 @@ async def run(
             console.print(f"  {path}")
 
 
-@click.command()
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("targets", nargs=-1)
 @click.option("--interval", "-i", default=1.0, help="Ping interval in seconds.")
 @click.option("--count", "-c", default=None, type=int, help="Number of pings (default: infinite).")
