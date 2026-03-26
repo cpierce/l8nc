@@ -29,11 +29,11 @@ def _status_label(t: TargetStats) -> tuple[str, str]:
     if not t.history:
         return "WAITING", "dim"
     if t.latest_ms is None:
-        return "DOWN", "bold red"
+        return "NO REPLY", "bold red"
     # Check if last N pings all failed
     recent = list(t.history)[-5:]
     if all(r.latency_ms is None for r in recent):
-        return "DOWN", "bold red"
+        return "NO REPLY", "bold red"
     if t.loss_pct > 50:
         return "FAILING", "bold red"
     if t.loss_pct > 10:

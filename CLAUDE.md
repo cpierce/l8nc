@@ -46,6 +46,6 @@ All source lives under `src/l8nc/` (src layout).
 ## Key design decisions
 
 - Custom targets **add to** defaults (use `--only` to skip defaults)
-- Timeouts are excluded from the chart (not plotted as 0ms) — shown via `[DOWN]` status label instead
+- Timeouts are excluded from the chart (not plotted as 0ms) — shown via `[NO REPLY]` status label instead
 - Platform detection in `discovery.py` handles macOS/Linux/Windows differently
 - `from __future__ import annotations` in all files for Python 3.9 compat with `X | Y` type hints
