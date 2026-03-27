@@ -122,13 +122,15 @@ def main(targets: tuple[str, ...], interval: float, count: int | None, log: str 
 
         l8nc --only 10.0.0.1 example.com
 
-    Use -l to save per-target logs:
+    Use -l to save per-target logs (defaults to logs/):
 
-        l8nc -l logs/
+        l8nc -l
+        l8nc -l /tmp/mylogs
 
-    Replay from saved logs:
+    Replay from saved logs (defaults to logs/):
 
-        l8nc --replay logs/
+        l8nc -r
+        l8nc -r /tmp/mylogs
     """
     if replay:
         replay_logs(replay)

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Update CLI help text to document default log/replay paths
+- Add auto-update of Homebrew tap on publish
+
 ## 0.1.5
 
 - Default `-l` and `-r` to `logs/` when no path specified (`l8nc -l`, `l8nc -r`)

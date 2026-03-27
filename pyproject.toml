@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "l8nc"
-version = "0.1.5"
+version = "0.1.6"
 description = "Multi-target continuous ping monitor for network troubleshooting"
 readme = "README.md"
 license = {text = "MIT"}
