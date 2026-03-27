@@ -60,8 +60,10 @@ async def ping_loop(
     targets: list[TargetStats],
     interval: float = 1.0,
     stop_event: asyncio.Event | None = None,
+    count: int | None = None,
 ) -> None:
     """Continuously ping all targets in parallel."""
+    pings_done = 0
     while True:
         if stop_event and stop_event.is_set():
             break
@@ -71,6 +73,12 @@ async def ping_loop(
 
         for target, latency in zip(targets, results):
             target.record(latency)
+
+        pings_done += 1
+        if count is not None and pings_done >= count:
+            if stop_event:
+                stop_event.set()
+            break
 
         if stop_event:
             try:

@@ -55,25 +55,28 @@ async def run(
     logger = LogManager(log_dir=log_dir) if log_dir else None
 
     ping_task = asyncio.create_task(
-        ping_loop(targets, interval=interval, stop_event=stop_event)
+        ping_loop(targets, interval=interval, stop_event=stop_event, count=count)
     )
 
+    last_history_len = 0
     with create_live_display() as live:
-        pings_done = 0
         while not stop_event.is_set():
             live.update(build_display(targets))
 
-            if logger and any(t.history for t in targets):
-                logger.write(targets)
+            # Only log when new ping data arrives
+            if logger:
+                cur_len = sum(len(t.history) for t in targets)
+                if cur_len > last_history_len:
+                    logger.write(targets)
+                    last_history_len = cur_len
 
             try:
-                await asyncio.wait_for(stop_event.wait(), timeout=interval)
+                await asyncio.wait_for(stop_event.wait(), timeout=0.5)
             except asyncio.TimeoutError:
                 pass
 
-            pings_done += 1
-            if count and pings_done >= count:
-                stop_event.set()
+        # Final display update to show all data
+        live.update(build_display(targets))
 
     await ping_task
 
@@ -99,7 +102,7 @@ async def run(
             console.print(f"  {path}")
 
 
-@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.command(context_settings={"help_option_names": ["-?", "-h", "--help"]})
 @click.argument("targets", nargs=-1)
 @click.option("--interval", "-i", default=1.0, help="Ping interval in seconds.")
 @click.option("--count", "-c", default=None, type=int, help="Number of pings (default: infinite).")
