@@ -107,9 +107,9 @@ async def run(
 @click.argument("targets", nargs=-1)
 @click.option("--interval", "-i", default=1.0, help="Ping interval in seconds.")
 @click.option("--count", "-c", default=None, type=int, help="Number of pings (default: infinite).")
-@click.option("--log", "-l", default=None, type=click.Path(), help="Enable logging. Saves per-target CSVs to this directory.")
+@click.option("--log", "-l", default=None, type=click.Path(), is_flag=False, flag_value="logs/", help="Enable logging. Default: logs/")
 @click.option("--only", "-o", is_flag=True, help="Only ping the specified targets (skip auto-detected defaults).")
-@click.option("--replay", "-r", default=None, type=click.Path(exists=True), help="Replay a chart from a log directory.")
+@click.option("--replay", "-r", default=None, type=click.Path(), is_flag=False, flag_value="logs/", help="Replay a chart from a log directory. Default: logs/")
 def main(targets: tuple[str, ...], interval: float, count: int | None, log: str | None, only: bool, replay: str | None) -> None:
     """Multi-target continuous ping monitor.
 

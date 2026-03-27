@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+
+- Default `-l` and `-r` to `logs/` when no path specified (`l8nc -l`, `l8nc -r`)
+- Add GitHub Actions workflow for automated PyPI publishing on tag push
+
 ## 0.1.4
 
 - Add `-v` / `--version` flag (version pulled from package metadata)

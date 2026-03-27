@@ -113,7 +113,7 @@ def replay_logs(log_dir: str) -> None:
 
     targets, break_times = _parse_logs(log_dir)
     if not targets:
-        console.print(f"[red]  No log data found in {log_dir}/[/]")
+        console.print(f"[red]  No log data found in {log_dir.rstrip('/')}/[/]")
         return
 
     # Find overall time range
@@ -125,7 +125,7 @@ def replay_logs(log_dir: str) -> None:
     duration = _format_duration(earliest, latest)
     num_sessions = len(break_times) + 1
 
-    console.print(f"[bold cyan]l8nc[/] — replay from [bold]{log_dir}/[/]")
+    console.print(f"[bold cyan]l8nc[/] — replay from [bold]{log_dir.rstrip('/')}/[/]")
     console.print(f"  {earliest.strftime('%Y-%m-%d %H:%M')} → {latest.strftime('%Y-%m-%d %H:%M')} ({duration}), {num_sessions} session{'s' if num_sessions > 1 else ''}")
     console.print()
 
