@@ -33,3 +33,63 @@ jobs:
       - run: pip install build
       - run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  update-homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for PyPI and get tarball SHA256
+        id: pypi
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Wait for the package to appear on PyPI (can take a minute)
+          for i in $(seq 1 30); do
+            URL=$(curl -sf "https://pypi.org/pypi/l8nc/${VERSION}/json" \
+              | python3 -c "import sys,json; files=json.load(sys.stdin)['urls']; sdist=[f for f in files if f['packagetype']=='sdist']; print(sdist[0]['url'])" 2>/dev/null) && break
+            echo "Waiting for PyPI... (attempt $i)"
+            sleep 10
+          done
+          if [ -z "$URL" ]; then
+            echo "::error::Package not found on PyPI after 5 minutes"
+            exit 1
+          fi
+          SHA256=$(curl -sL "$URL" | sha256sum | cut -d' ' -f1)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew formula
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          URL="${{ steps.pypi.outputs.url }}"
+          SHA256="${{ steps.pypi.outputs.sha256 }}"
+
+          # Fetch current formula
+          FORMULA=$(curl -sf \
+            -H "Authorization: token ${TAP_TOKEN}" \
+            -H "Accept: application/vnd.github.v3.raw" \
+            "https://api.github.com/repos/cpierce/homebrew-tap/contents/Formula/l8nc.rb")
+
+          # Update url and sha256 lines
+          UPDATED=$(echo "$FORMULA" \
+            | sed "s|url \"https://files.pythonhosted.org/.*\"|url \"${URL}\"|" \
+            | sed "s|sha256 \"[a-f0-9]*\"|sha256 \"${SHA256}\"|")
+
+          # Get current file SHA for the API update
+          FILE_SHA=$(curl -sf \
+            -H "Authorization: token ${TAP_TOKEN}" \
+            "https://api.github.com/repos/cpierce/homebrew-tap/contents/Formula/l8nc.rb" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
+
+          # Push updated formula
+          CONTENT=$(echo "$UPDATED" | base64 -w 0)
+          curl -sf -X PUT \
+            -H "Authorization: token ${TAP_TOKEN}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/cpierce/homebrew-tap/contents/Formula/l8nc.rb" \
+            -d "{\"message\":\"Update l8nc to ${VERSION}\",\"content\":\"${CONTENT}\",\"sha\":\"${FILE_SHA}\"}"
