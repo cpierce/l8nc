@@ -76,10 +76,18 @@ jobs:
             -H "Accept: application/vnd.github.v3.raw" \
             "https://api.github.com/repos/cpierce/homebrew-tap/contents/Formula/l8nc.rb")
 
-          # Update url and sha256 lines
-          UPDATED=$(echo "$FORMULA" \
-            | sed "s|url \"https://files.pythonhosted.org/.*\"|url \"${URL}\"|" \
-            | sed "s|sha256 \"[a-f0-9]*\"|sha256 \"${SHA256}\"|")
+          # Update only the first url and sha256 lines (main package, not resources)
+          UPDATED=$(echo "$FORMULA" | awk -v new_url="$URL" -v new_sha="$SHA256" '
+            !url_done && /url "https:\/\/files.pythonhosted.org\// {
+              sub(/url "https:\/\/files\.pythonhosted\.org\/[^"]*"/, "url \"" new_url "\"")
+              url_done=1
+            }
+            !sha_done && /sha256 "[a-f0-9]+"/ {
+              sub(/sha256 "[a-f0-9]+"/, "sha256 \"" new_sha "\"")
+              sha_done=1
+            }
+            {print}
+          ')
 
           # Get current file SHA for the API update
           FILE_SHA=$(curl -sf \

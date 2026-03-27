@@ -26,5 +26,8 @@ env/
 .coverage
 htmlcov/
 
+# Claude Code
+.claude/
+
 # l8nc logs
 logs/
