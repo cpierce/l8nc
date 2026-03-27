@@ -1,13 +1,32 @@
 # l8nc
 
+[![PyPI](https://img.shields.io/pypi/v/l8nc)](https://pypi.org/project/l8nc/)
+[![Python](https://img.shields.io/pypi/pyversions/l8nc)](https://pypi.org/project/l8nc/)
+[![License](https://img.shields.io/pypi/l/l8nc)](https://github.com/cpierce/l8nc/blob/main/LICENSE)
+
 Multi-target continuous ping monitor. Pings your gateway, ISP hop, and public DNS simultaneously, showing a live braille chart so you can instantly see *where* your internet is breaking.
 
 Built for network engineers who need quick answers during calls.
 
 ## Install
 
+### PyPI (recommended)
+
 ```bash
 pip install l8nc
+```
+
+Or with [pipx](https://pipx.pypa.io/) for an isolated install:
+
+```bash
+pipx install l8nc
+```
+
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap cpierce/tap
+brew install l8nc
 ```
 
 ## Usage
@@ -40,7 +59,7 @@ l8nc auto-discovers three network hops and pings them in parallel:
 2. **ISP hop** — first hop outside your network (via traceroute)
 3. **Public DNS** — Google (8.8.8.8) and Cloudflare (1.1.1.1)
 
-All targets overlay on a single live chart. Timeouts show as `[DOWN]` rather than 0ms spikes, so the chart stays useful.
+All targets overlay on a single live chart. Timeouts show as `[NO REPLY]` rather than 0ms spikes, so the chart stays useful.
 
 ## Options
 
