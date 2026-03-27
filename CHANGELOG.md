@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Fix CI: grant Homebrew tap update job access to production environment secrets
+
 ## 0.1.6
 
 - Update CLI help text to document default log/replay paths
