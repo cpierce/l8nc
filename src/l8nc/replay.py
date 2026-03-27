@@ -126,8 +126,7 @@ def replay_logs(log_dir: str) -> None:
     num_sessions = len(break_times) + 1
 
     console.print(f"[bold cyan]l8nc[/] — replay from [bold]{log_dir}/[/]")
-    console.print(f"  {earliest.strftime('%Y-%m-%d %H:%M')} → {latest.strftime('%Y-%m-%d %H:%M')} ({duration})")
-    console.print(f"  {num_sessions} session{'s' if num_sessions > 1 else ''}")
+    console.print(f"  {earliest.strftime('%Y-%m-%d %H:%M')} → {latest.strftime('%Y-%m-%d %H:%M')} ({duration}), {num_sessions} session{'s' if num_sessions > 1 else ''}")
     console.print()
 
     plt.clear_figure()
@@ -136,31 +135,9 @@ def replay_logs(log_dir: str) -> None:
     origin = earliest.timestamp()
 
     for i, t in enumerate(targets):
-        label = t["label"]
-        latencies = t["latencies"]
-        timestamps = t["timestamps"]
-        timeouts = t["timeouts"]
-        total = t["total"]
         plot_color = PLOT_COLORS[i % len(PLOT_COLORS)]
-
-        min_ms = min(latencies)
-        avg_ms = sum(latencies) / len(latencies)
-        max_ms = max(latencies)
-        loss_pct = (timeouts / total * 100) if total > 0 else 0
-
-        line = Text()
-        line.append(f" ■ ", style=f"bold {plot_color}")
-        line.append(f"{label}", style="bold white")
-        line.append(f"  min {min_ms:.1f}ms", style="dim")
-        line.append(f"  avg {avg_ms:.1f}ms", style="dim")
-        line.append(f"  max {max_ms:.1f}ms", style="dim")
-        line.append(f"  loss {loss_pct:.0f}%", style="bold red" if loss_pct > 0 else "green")
-        line.append(f"  ({total} pings)", style="dim")
-        console.print(line)
-
-        # Seconds since start of recording
-        x_vals = [ts.timestamp() - origin for ts in timestamps]
-        plt.plot(x_vals, latencies, marker="braille", color=plot_color)
+        x_vals = [ts.timestamp() - origin for ts in t["timestamps"]]
+        plt.plot(x_vals, t["latencies"], marker="braille", color=plot_color)
 
     # Draw vertical lines at session breaks
     all_latencies = []
@@ -169,11 +146,9 @@ def replay_logs(log_dir: str) -> None:
     y_min = min(all_latencies) if all_latencies else 0
     y_max = max(all_latencies) if all_latencies else 1
 
-    # Add some padding to vertical lines so they extend beyond data
     y_padding = (y_max - y_min) * 0.05
-    for idx, bt in enumerate(break_times):
+    for bt in break_times:
         x_pos = bt - origin
-        # Draw vertical line with many points so it's solid
         steps = 20
         y_points = [y_min - y_padding + (y_max - y_min + 2 * y_padding) * s / steps for s in range(steps + 1)]
         x_points = [x_pos] * len(y_points)
@@ -200,42 +175,83 @@ def replay_logs(log_dir: str) -> None:
     plt.xlabel("")
     plt.title("")
 
-    console.print()
     plot_str = plt.build()
     decoder = AnsiDecoder()
     for line in decoder.decode(plot_str):
         console.print(line)
 
-    # Show session break details using break_times to split
-    if break_times:
+    # Overall totals per host
+    console.print()
+    console.print("[bold cyan]── Totals ──[/]")
+    for i, t in enumerate(targets):
+        latencies = t["latencies"]
+        total = t["total"]
+        timeouts = t["timeouts"]
+        plot_color = PLOT_COLORS[i % len(PLOT_COLORS)]
+        min_ms = min(latencies)
+        avg_ms = sum(latencies) / len(latencies)
+        max_ms = max(latencies)
+        loss_pct = (timeouts / total * 100) if total > 0 else 0
+
+        line = Text()
+        line.append(f"  ■ ", style=f"bold {plot_color}")
+        line.append(f"{t['label']}", style="bold white")
+        line.append(f"  min {min_ms:.1f}ms", style="dim")
+        line.append(f"  avg {avg_ms:.1f}ms", style="dim")
+        line.append(f"  max {max_ms:.1f}ms", style="dim")
+        line.append(f"  loss {loss_pct:.0f}%", style="bold red" if loss_pct > 0 else "green")
+        line.append(f"  ({total} pings)", style="dim")
+        console.print(line)
+
+    # Per-session breakdowns
+    if num_sessions > 1:
         console.print()
-        console.print("[dim]  Sessions:[/]")
+        console.print("[bold cyan]── Sessions ──[/]")
 
-        # Collect all timestamps across all targets, sorted
-        every_ts = sorted(all_timestamps)
+        boundaries = [earliest.timestamp()] + break_times + [latest.timestamp() + 1]
 
-        # Split into sessions using break_times as dividers
-        sessions = []
-        current = []
-        break_set = list(break_times)
-        bi = 0
-        for ts in every_ts:
-            epoch = ts.timestamp()
-            if bi < len(break_set) and epoch > break_set[bi]:
-                if current:
-                    sessions.append(current)
-                current = []
-                bi += 1
-            current.append(ts)
-        if current:
-            sessions.append(current)
+        for s in range(len(boundaries) - 1):
+            sess_start_epoch = boundaries[s]
+            sess_end_epoch = boundaries[s + 1]
 
-        for s, sess_timestamps in enumerate(sessions):
+            sess_timestamps = [
+                ts for ts in all_timestamps
+                if sess_start_epoch <= ts.timestamp() < sess_end_epoch
+            ]
+            if not sess_timestamps:
+                continue
+
             start = min(sess_timestamps)
             end = max(sess_timestamps)
             dur = _format_duration(start, end)
-            console.print(f"    Session {s + 1}: {start.strftime('%H:%M:%S')} → {end.strftime('%H:%M:%S')} ({dur})")
-            if s < len(sessions) - 1:
-                next_start = min(sessions[s + 1])
-                gap_dur = _format_duration(end, next_start)
-                console.print(f"    [dim]  ↕ gap: {gap_dur}[/]")
+            console.print(f"  Session {s + 1}: {start.strftime('%H:%M:%S')} → {end.strftime('%H:%M:%S')} ({dur})")
+
+            for i, t in enumerate(targets):
+                sess_latencies = [
+                    lat for ts, lat in zip(t["timestamps"], t["latencies"])
+                    if sess_start_epoch <= ts.timestamp() < sess_end_epoch
+                ]
+                if not sess_latencies:
+                    continue
+                plot_color = PLOT_COLORS[i % len(PLOT_COLORS)]
+                min_ms = min(sess_latencies)
+                avg_ms = sum(sess_latencies) / len(sess_latencies)
+                max_ms = max(sess_latencies)
+                line = Text()
+                line.append(f"    ■ ", style=f"bold {plot_color}")
+                line.append(f"{t['label']}", style="bold white")
+                line.append(f"  min {min_ms:.1f}ms", style="dim")
+                line.append(f"  avg {avg_ms:.1f}ms", style="dim")
+                line.append(f"  max {max_ms:.1f}ms", style="dim")
+                line.append(f"  ({len(sess_latencies)} pings)", style="dim")
+                console.print(line)
+
+            if s < len(boundaries) - 2:
+                next_sess_timestamps = [
+                    ts for ts in all_timestamps
+                    if boundaries[s + 1] <= ts.timestamp() < boundaries[s + 2]
+                ]
+                if next_sess_timestamps:
+                    next_start = min(next_sess_timestamps)
+                    gap_dur = _format_duration(end, next_start)
+                    console.print(f"  [dim]  ↕ gap: {gap_dur}[/]")

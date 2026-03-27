@@ -102,7 +102,8 @@ async def run(
             console.print(f"  {path}")
 
 
-@click.command(context_settings={"help_option_names": ["-?", "-h", "--help"]})
+@click.command(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(None, "-v", "--version", package_name="l8nc", prog_name="l8nc", message="%(prog)s %(version)s")
 @click.argument("targets", nargs=-1)
 @click.option("--interval", "-i", default=1.0, help="Ping interval in seconds.")
 @click.option("--count", "-c", default=None, type=int, help="Number of pings (default: infinite).")
