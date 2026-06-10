@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import platform
 import re
 import subprocess
 
@@ -33,9 +34,17 @@ async def ping_once_icmplib(address: str, timeout: float) -> float | None:
 async def ping_once_subprocess(address: str, timeout: float) -> float | None:
     """Ping using system ping command. Returns latency in ms or None on failure."""
     try:
-        timeout_int = max(1, int(timeout))
+        system = platform.system()
+        if system == "Darwin":
+            # macOS ping takes -W in milliseconds
+            args = ["ping", "-c", "1", "-W", str(max(1, int(timeout * 1000))), address]
+        elif system == "Windows":
+            args = ["ping", "-n", "1", "-w", str(max(1, int(timeout * 1000))), address]
+        else:
+            # Linux ping takes -W in seconds
+            args = ["ping", "-c", "1", "-W", str(max(1, int(timeout))), address]
         proc = await asyncio.create_subprocess_exec(
-            "ping", "-c", "1", "-W", str(timeout_int), address,
+            *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
         )

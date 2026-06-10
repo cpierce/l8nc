@@ -22,9 +22,36 @@ class TargetStats:
     address: str
     label: str
     history: deque[PingResult] = field(default_factory=lambda: deque(maxlen=60))
+    # Session-wide counters: history is a rolling window, so these track
+    # totals that survive past the window for logging and the final summary.
+    total_pings: int = 0
+    total_lost: int = 0
+    session_min_ms: float | None = None
+    session_max_ms: float | None = None
+    _session_sum_ms: float = field(default=0.0, repr=False)
 
     def record(self, latency_ms: float | None) -> None:
         self.history.append(PingResult(timestamp=time.time(), latency_ms=latency_ms))
+        self.total_pings += 1
+        if latency_ms is None:
+            self.total_lost += 1
+        else:
+            self._session_sum_ms += latency_ms
+            if self.session_min_ms is None or latency_ms < self.session_min_ms:
+                self.session_min_ms = latency_ms
+            if self.session_max_ms is None or latency_ms > self.session_max_ms:
+                self.session_max_ms = latency_ms
+
+    @property
+    def session_avg_ms(self) -> float | None:
+        received = self.total_pings - self.total_lost
+        return self._session_sum_ms / received if received else None
+
+    @property
+    def session_loss_pct(self) -> float:
+        if not self.total_pings:
+            return 0.0
+        return (self.total_lost / self.total_pings) * 100
 
     @property
     def successful_latencies(self) -> list[float]:
@@ -51,6 +78,15 @@ class TargetStats:
             return 0.0
         lost = sum(1 for r in self.history if not r.is_success)
         return (lost / len(self.history)) * 100
+
+    @property
+    def jitter_ms(self) -> float | None:
+        """Mean absolute difference between successive latencies (rolling window)."""
+        lats = self.successful_latencies
+        if len(lats) < 2:
+            return None
+        diffs = [abs(b - a) for a, b in zip(lats, lats[1:])]
+        return sum(diffs) / len(diffs)
 
     @property
     def latest_ms(self) -> float | None:

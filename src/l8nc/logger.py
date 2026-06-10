@@ -22,6 +22,7 @@ class LogManager:
         self.log_dir = log_dir
         self._files: dict[str, str] = {}  # address -> filepath
         self._initialized: set[str] = set()
+        self._logged_counts: dict[str, int] = {}  # address -> pings already logged
 
     def _ensure_dir(self) -> None:
         os.makedirs(self.log_dir, exist_ok=True)
@@ -53,28 +54,39 @@ class LogManager:
         self._initialized.add(target.address)
 
     def write(self, targets: list[TargetStats]) -> None:
-        """Write one row per target to its log file."""
+        """Write all not-yet-logged results for each target to its log file.
+
+        Tracks how many pings have been logged per target so every result is
+        written exactly once, even when several pings arrive between calls.
+        """
         for t in targets:
             if not t.history:
                 continue
 
+            new_count = t.total_pings - self._logged_counts.get(t.address, 0)
+            if new_count <= 0:
+                continue
+            # If we somehow fell further behind than the rolling window
+            # holds, the evicted results are gone — log what remains.
+            new_results = list(t.history)[-min(new_count, len(t.history)):]
+
             self._init_file(t)
             path = self._get_path(t)
 
-            latest = t.latest_ms
-            status = "ok" if latest is not None else "timeout"
-
             with open(path, "a", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    datetime.datetime.now().isoformat(),
-                    f"{latest:.1f}" if latest is not None else "",
-                    f"{t.loss_pct:.1f}",
-                    f"{t.min_ms:.1f}" if t.min_ms is not None else "",
-                    f"{t.avg_ms:.1f}" if t.avg_ms is not None else "",
-                    f"{t.max_ms:.1f}" if t.max_ms is not None else "",
-                    status,
-                ])
+                for r in new_results:
+                    writer.writerow([
+                        datetime.datetime.fromtimestamp(r.timestamp).isoformat(),
+                        f"{r.latency_ms:.1f}" if r.latency_ms is not None else "",
+                        f"{t.loss_pct:.1f}",
+                        f"{t.min_ms:.1f}" if t.min_ms is not None else "",
+                        f"{t.avg_ms:.1f}" if t.avg_ms is not None else "",
+                        f"{t.max_ms:.1f}" if t.max_ms is not None else "",
+                        "ok" if r.latency_ms is not None else "timeout",
+                    ])
+
+            self._logged_counts[t.address] = t.total_pings
 
     def summary(self) -> dict[str, str]:
         """Return {label: filepath} for all log files written."""

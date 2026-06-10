@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import shutil
+
 import plotext as plt
 from rich.ansi import AnsiDecoder
 from rich.console import Group
@@ -69,6 +71,7 @@ def build_display(targets: list[TargetStats]) -> Group:
         line.append(f"min {_fmt_ms(t.min_ms)}", style="dim")
         line.append(f"  avg {_fmt_ms(t.avg_ms)}", style="dim")
         line.append(f"  max {_fmt_ms(t.max_ms)}", style="dim")
+        line.append(f"  jit {_fmt_ms(t.jitter_ms)}", style="dim")
         line.append(f"  loss {loss_str}", style=f"bold {color}")
         stats_lines.append(line)
 
@@ -93,7 +96,13 @@ def build_display(targets: list[TargetStats]) -> Group:
             label = t.label
             plt.plot(x_vals, y_vals, marker="braille", color=plot_color)
 
-    plt.plotsize(80, 18)
+    # Size the chart to the terminal, leaving room for the header,
+    # per-target stats lines, and surrounding blank lines.
+    term_width, term_height = shutil.get_terminal_size((80, 24))
+    reserved_rows = len(targets) + 5
+    plot_width = max(60, term_width - 2)
+    plot_height = max(10, term_height - reserved_rows)
+    plt.plotsize(plot_width, plot_height)
     plt.ylabel("ms")
     plt.xlabel("")
     plt.title("")

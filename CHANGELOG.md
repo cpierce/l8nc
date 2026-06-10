@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.9
+
+- Fix: CSV logging silently stopped after the first 60 pings (rolling-window length was used to detect new data)
+- Fix: logger only wrote the latest ping per display tick, dropping results at fast intervals; every ping now gets its own row, stamped with the ping's own timestamp
+- Fix: end-of-run summary now covers the whole session instead of the last 60 samples
+- Fix: subprocess ping fallback used wrong timeout units on macOS (`-W` is ms, not seconds); added Windows args too
+- Chart now sizes itself to the terminal instead of fixed 80×18
+- Add jitter (`jit`) to the live per-target stats line
+
+## 0.1.8
+
+- Fix Homebrew tap automation
+- Add `.claude` to gitignore
+
 ## 0.1.7
 
 - Fix CI: grant Homebrew tap update job access to production environment secrets

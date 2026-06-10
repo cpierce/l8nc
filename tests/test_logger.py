@@ -81,6 +81,44 @@ def test_logger_skips_empty_history():
         assert not os.path.exists(path)
 
 
+def test_logger_catches_up_on_multiple_new_results():
+    """Every ping recorded between write() calls gets its own row."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        logger = LogManager(log_dir=tmpdir)
+        t = TargetStats(address="1.1.1.1", label="test")
+        t.record(10.0)
+        t.record(20.0)
+        t.record(None)
+        logger.write([t])
+        # No new results — second call must not duplicate rows
+        logger.write([t])
+
+        path = os.path.join(tmpdir, "test.csv")
+        with open(path) as f:
+            rows = list(csv.reader(f))
+        assert len(rows) == 4  # header + 3 data rows
+        assert rows[1][1] == "10.0"
+        assert rows[2][1] == "20.0"
+        assert rows[3][6] == "timeout"
+
+
+def test_logger_keeps_writing_past_rolling_window():
+    """Logging must not stop once the 60-sample history deque is full."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        logger = LogManager(log_dir=tmpdir)
+        t = TargetStats(address="1.1.1.1", label="test")
+        for i in range(70):
+            t.record(float(i))
+            logger.write([t])
+        t.record(99.0)
+        logger.write([t])
+
+        path = os.path.join(tmpdir, "test.csv")
+        with open(path) as f:
+            rows = list(csv.reader(f))
+        assert len(rows) == 72  # header + 71 data rows
+
+
 def test_logger_appends_rows():
     with tempfile.TemporaryDirectory() as tmpdir:
         logger = LogManager(log_dir=tmpdir)

@@ -19,6 +19,32 @@ async def test_ping_once_returns_float_or_none():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "system,expected",
+    [
+        ("Darwin", ["ping", "-c", "1", "-W", "2000", "1.1.1.1"]),
+        ("Linux", ["ping", "-c", "1", "-W", "2", "1.1.1.1"]),
+        ("Windows", ["ping", "-n", "1", "-w", "2000", "1.1.1.1"]),
+    ],
+)
+async def test_subprocess_ping_timeout_units(system, expected):
+    """macOS/Windows ping take the timeout in ms, Linux in seconds."""
+    from l8nc.pinger import ping_once_subprocess
+
+    with patch("l8nc.pinger.platform.system", return_value=system), patch(
+        "asyncio.create_subprocess_exec", new_callable=AsyncMock
+    ) as mock_exec:
+        proc = AsyncMock()
+        proc.communicate.return_value = (b"time=12.3 ms", b"")
+        mock_exec.return_value = proc
+
+        result = await ping_once_subprocess("1.1.1.1", timeout=2.0)
+
+    assert list(mock_exec.call_args.args) == expected
+    assert result == 12.3
+
+
+@pytest.mark.asyncio
 async def test_ping_loop_count_exact():
     """ping_loop with count=5 should record exactly 5 results per target."""
     targets = [

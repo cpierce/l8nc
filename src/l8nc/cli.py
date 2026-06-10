@@ -58,17 +58,19 @@ async def run(
         ping_loop(targets, interval=interval, stop_event=stop_event, count=count)
     )
 
-    last_history_len = 0
+    last_ping_count = 0
     with create_live_display() as live:
         while not stop_event.is_set():
             live.update(build_display(targets))
 
-            # Only log when new ping data arrives
+            # Only log when new ping data arrives. Use total_pings, not
+            # len(history): history is a bounded deque whose length stops
+            # growing once full, which would silently stop logging.
             if logger:
-                cur_len = sum(len(t.history) for t in targets)
-                if cur_len > last_history_len:
+                cur_count = sum(t.total_pings for t in targets)
+                if cur_count > last_ping_count:
                     logger.write(targets)
-                    last_history_len = cur_len
+                    last_ping_count = cur_count
 
             try:
                 await asyncio.wait_for(stop_event.wait(), timeout=0.5)
@@ -80,19 +82,21 @@ async def run(
 
     await ping_task
 
-    # Print summary
+    # Flush any results recorded since the last display tick
+    if logger:
+        logger.write(targets)
+
+    # Print summary over the whole session, not just the rolling window
     console.print()
     console.print("[bold cyan]── Summary ──[/]")
     for t in targets:
-        min_str = f"{t.min_ms:.1f}ms" if t.min_ms is not None else "--"
-        avg_str = f"{t.avg_ms:.1f}ms" if t.avg_ms is not None else "--"
-        max_str = f"{t.max_ms:.1f}ms" if t.max_ms is not None else "--"
-        total = len(t.history)
-        lost = sum(1 for r in t.history if not r.is_success)
+        min_str = f"{t.session_min_ms:.1f}ms" if t.session_min_ms is not None else "--"
+        avg_str = f"{t.session_avg_ms:.1f}ms" if t.session_avg_ms is not None else "--"
+        max_str = f"{t.session_max_ms:.1f}ms" if t.session_max_ms is not None else "--"
         console.print(
             f"  {t.label} ({t.address}): "
             f"{min_str}/{avg_str}/{max_str} "
-            f"loss={t.loss_pct:.1f}% ({lost}/{total})"
+            f"loss={t.session_loss_pct:.1f}% ({t.total_lost}/{t.total_pings})"
         )
 
     if logger:
